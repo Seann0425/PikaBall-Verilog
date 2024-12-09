@@ -149,18 +149,18 @@ always @(posedge clk)begin
         end else if(player_collison && player_left_e && ~check_smash_cnt_max)begin 
             x_dir <= 0;
             v_x <= 2; 
-        end else if(player_collison && player_right_e)begin 
+        end else if(player_collison && player_right_e && ~check_smash_cnt_max)begin 
             x_dir <= 1;
             v_x <= 2; 
-        end else if(NPC_collison && NPC_left_e )begin 
+        end else if(NPC_collison && NPC_left_e && ~check_smash_cnt_max)begin 
             x_dir <= 0;
             v_x <= 2;
         end else if(NPC_collison && NPC_right_e && ~check_smash_cnt_max)begin 
             x_dir <= 1;
             v_x <= 2;
-        end else if(NPC_collison && NPC_center_e)begin
+        end else if(NPC_collison && NPC_center_e && ~check_smash_cnt_max)begin
             v_x <= 0;
-        end else if(player_collison && player_center_e)begin    
+        end else if(player_collison && player_center_e && ~check_smash_cnt_max)begin    
             v_x <= 0;
         end else x_dir <= x_dir;
     end

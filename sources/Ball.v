@@ -30,9 +30,11 @@ localparam [11:0] Ball_W = 30,
                   START_V_X = 0,
                   START_V_Y = 2,
                   g = 2, 
-                  range = 23;
+                  range = 23,
+                  smash_speed = 23,
+                  ground_y = 220;
                  
-localparam [31:0] smash_cnt_max = 50_000_000;
+localparam [31:0] smash_cnt_max = 5000;
 
 localparam [31:0] max_number_0 = 1,
                   max_number_1 = 3,
@@ -53,6 +55,7 @@ wire player_left_e , player_right_e , player_top_e , player_center_e;
 wire NPC_left_side , NPC_right_side , NPC_top;
 wire NPC_left_e , NPC_right_e , NPC_top_e , NPC_center_e;
 wire NPC_collison;
+wire player_on_ground , NPC_on_ground;
 wire net_collison;
 wire net_collison_top;
 wire net_collison_side;
@@ -93,6 +96,9 @@ assign NPC_collison = (NPC_left_side && (NPC_right_side) && (NPC_top_side) &&
 assign net_collison = (pos_y[31:20] + Ball_H >= NET_POS_Y) && (pos_x[31:20] + Ball_W >= NET_POS_X) && ( pos_x[31:20] <= NET_POS_X + NET_W);
 assign net_collison_top  =(pos_y[31:20] + Ball_H == NET_POS_Y) && (pos_x[31:20] + Ball_W >= NET_POS_X) && (pos_x[31:20] <= NET_POS_X + NET_W);
  
+assign player_on_ground =  Player_Y + Pika_H < ground_y;
+assign NPC_on_ground = NPC_Y + Pika_H < ground_y;
+ 
 assign Ball_X = pos_x[31:20];
 assign Ball_Y = pos_y[31:20];
 assign check_cnt_max = (clk_cnt == clk_cnt_max);
@@ -113,7 +119,7 @@ always @(posedge clk)begin
     end else if(start)begin
         smash_cnt <= (smash_cnt == smash_cnt_max)?smash_cnt_max:(smash_cnt+1);
         start <= (check_smash_cnt_max)?0:1;
-        smash_times <= 3;
+        smash_times <= 6;
     end else begin
         smash_times <= 1;
         start <= (smash && (player_collison || NPC_collison))?1:0;
@@ -128,7 +134,7 @@ always @(posedge clk)begin
         x_dir <= 1;
         v_x <= START_V_X;
     end else begin
-        if(check_cnt_max) pos_x <= (x_dir) ? (pos_x + v_x * smash_times):(pos_x - v_x * smash_times);
+        if(check_cnt_max) pos_x <= (x_dir) ? (pos_x + v_x):(pos_x - v_x);
         
         if(pos_x[31:20] == 12'b0) x_dir <= 1;
         else if(pos_x[31:20] + Ball_W == VBUF_W) x_dir <= 0;
@@ -136,11 +142,11 @@ always @(posedge clk)begin
         else if(net_collison && pos_x[31:20] == NET_POS_X + NET_W ) x_dir <= 1;
         else if(player_collison && smash)begin
             x_dir <= 0;
-            v_x <= 2;
+            v_x <= smash_speed;
         end else if(NPC_collison && smash)begin
             x_dir <= 1;
-            v_x <= 2;
-        end else if(player_collison && player_left_e )begin 
+            v_x <= smash_speed;
+        end else if(player_collison && player_left_e && ~check_smash_cnt_max)begin 
             x_dir <= 0;
             v_x <= 2; 
         end else if(player_collison && player_right_e)begin 
@@ -149,7 +155,7 @@ always @(posedge clk)begin
         end else if(NPC_collison && NPC_left_e )begin 
             x_dir <= 0;
             v_x <= 2;
-        end else if(NPC_collison && NPC_right_e)begin 
+        end else if(NPC_collison && NPC_right_e && ~check_smash_cnt_max)begin 
             x_dir <= 1;
             v_x <= 2;
         end else if(NPC_collison && NPC_center_e)begin
@@ -167,10 +173,10 @@ always @(posedge clk)begin
         else pos_y[31:20] <= START_POS_PLAYER_Y;
         y_dir <= 1;
     end else begin
-        if(check_cnt_max) pos_y <= (y_dir) ? (pos_y + v_y[31:24]) : ( pos_y - v_y[31:24]);
+        if(check_cnt_max) pos_y <= (y_dir) ? (pos_y + v_y[31:24]) : ( (pos_y < v_y[31:24])?0:(pos_y - v_y[31:24]));
         
         if(pos_y[31:20] == 0 || v_y[31:24] == 0)y_dir <= 1;
-        else if((player_collison || NPC_collison) && smash) y_dir <= 1;
+        else if(( (player_collison && player_on_ground) || (NPC_collison && NPC_on_ground) ) && smash) y_dir <= 1;
         else if(pos_y[31:20] + Ball_H == VBUF_H - 20) y_dir <= 0;
         else if( (player_collison && player_top_e) || (NPC_collison && NPC_top_e    ) || net_collison_top) y_dir <= 0;
         else y_dir <= y_dir; 

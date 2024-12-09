@@ -143,9 +143,9 @@ always @(posedge clk)begin
         v_y[31:23] <= START_V_Y;
     end else begin
         if(player_collison)begin
-            v_y <= (v_y < 2)? 0 : (v_y - 4);
+            v_y <= 5;
         end else begin
-            v_y <= ( y_dir )? (v_y + g) : ( v_y - g );
+            v_y <= ( y_dir )? (v_y + g) : ( (v_y < g)?0:(v_y - g) );
         end
     end
 end

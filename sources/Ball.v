@@ -20,9 +20,9 @@ localparam [11:0] Ball_W = 30,
                   VBUF_H = 240,
                   VBUF_W = 320,
                   NET_W = 6,
-                  NET_H = 60,
+                  NET_H = 90,
                   NET_POS_X = 160,
-                  NET_POS_Y = 180,
+                  NET_POS_Y = 150,
                   START_POS_PLAYER_X = 160,
                   START_POS_PLAYER_Y = 60,
                   START_POS_NPC_X = 100,
@@ -53,15 +53,14 @@ reg start;  // check smash is start
 
 // direction control
 reg x_dir , y_dir;
-reg y_v_dir;
 
 
 //assign
-assign player_collison = ((pos_x[31:20] + Ball_W >= Player_X - 5 ) && ( pos_x[31:20] <= Player_X + Pika_W - 5)&&
-                         (pos_y[31:20] + Ball_H >= Player_Y) && ( pos_y[31:20] <= Player_Y + Pika_H - 21));
+assign player_collison = ((pos_x[31:20] + Ball_W >= Player_X + 5 ) && ( pos_x[31:20] <= Player_X + Pika_W - 7)&&
+                         (pos_y[31:20] + Ball_H >= Player_Y) && ( pos_y[31:20] <= Player_Y + Pika_H));
 
-assign NPC_collison = ((pos_x[31:20] + Ball_W >= NPC_X -5) && ( pos_x[31:20] <= NPC_X + Pika_W -5)&&
-                      ( pos_y[31:20] + Ball_H  >= NPC_Y ) && ( pos_y[31:20] <= NPC_Y + Pika_H - 21));
+assign NPC_collison = ((pos_x[31:20] + Ball_W >= NPC_X +5) && ( pos_x[31:20] <= NPC_X + Pika_W -7)&&
+                      ( pos_y[31:20] + Ball_H  >= NPC_Y) && ( pos_y[31:20] <= NPC_Y + Pika_H));
 
 assign net_collison = (pos_y[31:20] + Ball_H >= NET_POS_Y) && (pos_x[31:20] + Ball_W >= NET_POS_X) && ( pos_x[31:20] <= NET_POS_X + NET_W);
 assign net_collison_top  =(pos_y[31:20] + Ball_H == NET_POS_Y) && (pos_x[31:20] + Ball_W >= NET_POS_X) && (pos_x[31:20] <= NET_POS_X + NET_W);
@@ -131,7 +130,7 @@ always @(posedge clk)begin
         pos_y <= (y_dir) ? (pos_y + v_y[31:23] * smash_times) : (pos_y - v_y[31:23] * smash_times);
         if(pos_y[31:20] == 0 || v_y[31:23] == 0)y_dir <= 1;
         else if(pos_y[31:20] + Ball_H == VBUF_H - 20) y_dir <= 0;
-        else if(player_collison || NPC_collison || net_collison_top) y_dir <= 0;
+        else if( (player_collison && pos_x + Ball_H <= Player_Y + 21) || (NPC_collison && pos_x + Ball_H <= NPC_Y + 21) || net_collison_top) y_dir <= 0;
         else y_dir <= y_dir; 
     end
 end
@@ -143,7 +142,11 @@ always @(posedge clk)begin
         v_x <= START_V_X;
         v_y[31:23] <= START_V_Y;
     end else begin
-        v_y <= ( y_dir )? (v_y + g) : ( v_y - g );
+        if(player_collison)begin
+            v_y <= (v_y < 2)? 0 : (v_y - 4);
+        end else begin
+            v_y <= ( y_dir )? (v_y + g) : ( v_y - g );
+        end
     end
 end
 

@@ -42,7 +42,31 @@ always @(posedge clk) begin
 end
 
 // npc vertical movement
+always @(posedge clk) begin
+    if (~reset_n) npc_vclock[31:22] <= VBUF_H - NPC_H - 21;
+    else if (face_v && npc_vclock[31:22] > 0)
+        npc_vclock <= npc_vclock - speed;
+    else if (~face_v && npc_vclock[31:22] + NPC_H < VBUF_H - 20)
+        npc_vclock <= npc_vclock + speed;
+end
 
 // acceleration setting
+always @(posedge clk) begin
+    if (~reset_n) begin
+        speed <= 0;
+        face_v <= 1;
+        speed_clk <= 0;
+    end else if (ball_pos_y <= 210 && npc_vclock[31:22] == (VBUF_H - NPC_H - 20)) begin
+        speed <= 20;
+        face_v <= 1;
+    end else if (face_v && speed_clk > 27'd8388608) begin
+        if (speed == 0) face_v <= 0;
+        else speed <= speed - 4;
+        speed_clk <= 0;
+    end else if (~face_v && npc_vclock[31:22] + NPC_H < VBUF_H - 20 && speed_clk > 27'd8388608) begin
+        speed <= speed + 2;
+        speed_clk <= 0;
+    end else speed_clk <= speed_clk + 1;
+end
 
 endmodule

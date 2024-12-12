@@ -31,7 +31,8 @@ module display(
     input [11:0] ball_y_position, 
     input  [3:0] user_btn,
     input [2:0] player_score,
-    input [2:0] computer_score,       
+    input [2:0] computer_score,
+    input [1:0] Game_state,
     // VGA specific I/O ports
     output VGA_HSYNC,
     output VGA_VSYNC,
@@ -41,12 +42,12 @@ module display(
     );
     
 // Declare system variables
-wire player_region,computer_region,ball_region,player_score_region,computer_score_region;
+wire player_region,computer_region,ball_region,player_score_region,computer_score_region,game_start_region,game_over_region;
 
 // declare SRAM control signals
-wire [16:0] sram_addr_background,sram_addr_player,sram_addr_computer,sram_addr_ball,sram_addr_player_score,sram_addr_computer_score;
+wire [16:0] sram_addr_background,sram_addr_player,sram_addr_computer,sram_addr_ball,sram_addr_player_score,sram_addr_computer_score,sram_addr_game_start,sram_addr_game_over;
 wire [11:0] data_in;
-wire [11:0] data_out_background,data_out_player,data_out_computer,data_out_ball,data_out_player_score,data_out_computer_score;
+wire [11:0] data_out_background,data_out_player,data_out_computer,data_out_ball,data_out_player_score,data_out_computer_score,data_out_game_start,data_out_game_over;
 wire sram_we, sram_en;
 
 // General VGA control signals
@@ -64,7 +65,7 @@ reg  [11:0] rgb_reg;  // RGB value for the current pixel
 reg  [11:0] rgb_next; // RGB value for the next pixel
   
 // Application-specific VGA signals
-reg  [17:0] pixel_addr_background,pixel_addr_player,pixel_addr_computer,pixel_addr_ball,pixel_addr_player_score,pixel_addr_computer_score;
+reg  [17:0] pixel_addr_background,pixel_addr_player,pixel_addr_computer,pixel_addr_ball,pixel_addr_player_score,pixel_addr_computer_score,pixel_addr_game_start,pixel_addr_game_over;
 
 // Declare the video buffer size
 localparam VBUF_W = 320; // video buffer width
@@ -75,6 +76,15 @@ localparam BALL_W = 30; // ball width
 localparam BALL_H = 30; // ball height
 localparam SCORE_H = 30;
 localparam SCORE_W = 24;
+localparam gameover_W = 141;
+localparam gameover_H = 15;
+localparam p_start_W = 189;
+localparam p_start_H = 15;
+
+localparam gameover_VPOS = 120;
+localparam gameover_L = 90;
+localparam p_start_VPOS = 120;
+localparam p_start_L = 66;
 
 reg [17:0] addr_player[0:7]; 
 reg [17:0] addr_computer[0:7];
@@ -149,7 +159,13 @@ sram #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(SCORE_W*SCORE_H*8), .FILE("nu
  
 sram #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(SCORE_W*SCORE_H*8), .FILE("nums.mem"))
   ram_computer_score (.clk(clk), .we(sram_we), .en(sram_en),  .addr(sram_addr_computer_score), .data_i(data_in), .data_o(data_out_computer_score)); 
-   
+
+sram #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(p_start_W*p_start_H), .FILE("p_start.mem"))
+  ram_game_start (.clk(clk), .we(sram_we), .en(sram_en),  .addr(sram_addr_game_start), .data_i(data_in), .data_o(data_out_game_start)); 
+
+sram #(.DATA_WIDTH(12), .ADDR_WIDTH(18), .RAM_SIZE(gameover_W*gameover_H), .FILE("game_over.mem"))
+  ram_game_over (.clk(clk), .we(sram_we), .en(sram_en),  .addr(sram_addr_game_over), .data_i(data_in), .data_o(data_out_game_over)); 
+     
 assign sram_we = ~user_btn[3]; // In this demo, we do not write the SRAM. However, if
                              // you set 'sram_we' to 0, Vivado fails to synthesize
                              // ram0 as a BRAM -- this is a bug in Vivado.
@@ -160,6 +176,8 @@ assign sram_addr_computer = pixel_addr_computer;
 assign sram_addr_ball = pixel_addr_ball;
 assign sram_addr_player_score = pixel_addr_player_score;
 assign sram_addr_computer_score = pixel_addr_computer_score;
+assign sram_addr_game_start = pixel_addr_game_start;
+assign sram_addr_game_over = pixel_addr_game_over;
 assign data_in = 12'h000; // SRAM is read-only so we tie inputs to zeros.
 // End of the SRAM memory block.
 // ------------------------------------------------------------------------
@@ -187,7 +205,15 @@ assign player_score_region =
 assign computer_score_region =
            pixel_y  >= 0 && pixel_y <  (SCORE_H*2) &&
            pixel_x <= (SCORE_W*2-1) && pixel_x > 0;
-                      
+
+assign game_start_region= 
+           pixel_y  >= p_start_VPOS && pixel_y <  p_start_VPOS+(p_start_H*2) &&
+           pixel_x <= p_start_L+(p_start_W*2-1) && pixel_x > p_start_L;   
+
+assign game_over_region= 
+           pixel_y  >= gameover_VPOS && pixel_y <  gameover_VPOS+(gameover_H*2) &&
+           pixel_x <= gameover_L+(gameover_W*2-1) && pixel_x > gameover_L; 
+                                       
 always @ (posedge clk) begin
   if (~reset_n) begin
     pixel_addr_background <=0;
@@ -196,23 +222,32 @@ always @ (posedge clk) begin
     pixel_addr_ball<=0;
     pixel_addr_player_score<=0;
     pixel_addr_computer_score<=0;
+    pixel_addr_game_start<=0;
+    pixel_addr_game_over<=0;
   end
   else begin
     pixel_addr_background <= (pixel_y >> 1) * VBUF_W + (pixel_x >> 1) ;
-    
+    if(Game_state==0)begin
+        pixel_addr_game_start<= ((pixel_y)>>1)*p_start_W +((pixel_x)>>1);       
+    end
+    else pixel_addr_game_start<=0;
+    if(Game_state==3)begin
+        pixel_addr_game_over<= ((pixel_y)>>1)*gameover_W +((pixel_x)>>1);       
+    end
+    else pixel_addr_game_over<=0;
     if(player_region) begin
     //check the position
-        pixel_addr_player<=addr_player[player_x_position[5:3]] +((pixel_y  -(player_y_position<<1))>>1)*PIKAJU_W +(((player_x_position<<1)+(PIKAJU_W*2-1)-pixel_x)>>1);
+        pixel_addr_player<=addr_player[player_x_position[3:1]] +((pixel_y  -(player_y_position<<1))>>1)*PIKAJU_W +(((player_x_position<<1)+(PIKAJU_W*2-1)-pixel_x)>>1);
     end
     else pixel_addr_player<=0;
     
     if(computer_region) begin 
-        pixel_addr_computer<=addr_computer[computer_x_position[5:3]] +((pixel_y -(computer_y_position<<1))>>1)*PIKAJU_W +((pixel_x-(computer_x_position<<1))>>1);
+        pixel_addr_computer<=addr_computer[computer_x_position[3:1]] +((pixel_y -(computer_y_position<<1))>>1)*PIKAJU_W +((pixel_x-(computer_x_position<<1))>>1);
     end
     else pixel_addr_computer<=0;
     
     if(ball_region) begin
-        pixel_addr_ball<=addr_ball[ball_x_position[5:3]] +((pixel_y -(ball_y_position<<1))>>1)*BALL_W +((pixel_x-(ball_x_position<<1))>>1);                        
+        pixel_addr_ball<=addr_ball[ball_x_position[3:1]] +((pixel_y -(ball_y_position<<1))>>1)*BALL_W +((pixel_x-(ball_x_position<<1))>>1);                        
     end
     else pixel_addr_ball<=0; 
     
@@ -236,8 +271,13 @@ always @(*) begin
   if (~video_on)
     rgb_next = 12'h000; // Synchronization period, must set RGB values to zero.
   else begin
-
-      if(data_out_computer_score!=12'h0f0)begin
+      if(data_out_game_over!=12'h0f0)begin
+        rgb_next = data_out_game_over;   
+      end
+      else if(data_out_game_start!=12'h0f0)begin
+        rgb_next = data_out_game_start;   
+      end
+      else if(data_out_computer_score!=12'h0f0)begin
         rgb_next = data_out_computer_score;   
       end   
       else if(data_out_player_score!=12'h0f0)begin

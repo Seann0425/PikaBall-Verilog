@@ -20,9 +20,9 @@ reg [26:0] speed_clk;
 
 localparam VBUF_W = 320;
 localparam VBUF_H = 240;
-localparam NPC_VPOS = 199;
 localparam NPC_W = 41;
 localparam NPC_H = 42;
+localparam NET_POS = 160;
 
 parameter gravity = 27'd1;
 parameter init_speed = 27'd4;
@@ -35,9 +35,9 @@ reg face_v;
 // npc horizontal movement
 always @(posedge clk) begin
     if (~reset_n) npc_clock[31:20] <= {VBUF_W - NPC_W - 1};
-    else if (~(npc_clock[31:20] + NPC_W > VBUF_W) && ball_pos_x > npc_pos_x)
+    else if (~(npc_clock[31:20] + NPC_W <= NET_POS) && ball_pos_x > npc_pos_x)
         npc_clock <= npc_clock + 1;
-    else if (~(npc_clock[31:20] <= 160) && ball_pos_x < npc_pos_x)
+    else if (~(npc_clock[31:20] > 0) && ball_pos_x < npc_pos_x)
         npc_clock <= npc_clock - 1;
 end
 

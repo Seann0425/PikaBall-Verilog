@@ -35,9 +35,9 @@ reg face_v;
 // npc horizontal movement
 always @(posedge clk) begin
     if (~reset_n) npc_clock[31:20] <= {VBUF_W - NPC_W - 1};
-    else if (~(npc_clock[31:20] + NPC_W <= NET_POS) && ball_pos_x > npc_pos_x)
+    else if (~(npc_clock[31:20] + NPC_W > NET_POS) && ball_pos_x > npc_pos_x)
         npc_clock <= npc_clock + 1;
-    else if (~(npc_clock[31:20] > 0) && ball_pos_x < npc_pos_x)
+    else if (~(npc_clock[31:20] <= 0) && ball_pos_x < npc_pos_x)
         npc_clock <= npc_clock - 1;
 end
 

@@ -56,7 +56,7 @@ always @(posedge clk) begin
         speed <= 0;
         face_v <= 1;
         speed_clk <= 0;
-    end else if (ball_pos_y <= 210 && npc_vclock[31:22] == (VBUF_H - NPC_H - 20)) begin
+    end else if (ball_pos_y <= 80 && npc_vclock[31:22] == (VBUF_H - NPC_H - 20)) begin
         speed <= 20;
         face_v <= 1;
     end else if (face_v && speed_clk > 27'd8388608) begin

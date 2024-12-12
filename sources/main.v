@@ -42,18 +42,20 @@ localparam BALL_H = 30;
 
 wire [11:0] player_x;
 wire [11:0] player_y;
-wire [11:0] computer_x=12'h050;
-wire [11:0] computer_y=12'h064;
+wire [11:0] computer_x;
+wire [11:0] computer_y;
 wire [11:0] ball_x;
 wire [11:0] ball_y;
 reg [2:0] player_score;
 reg [2:0] computer_score;
-reg [2:0] state;
+reg [1:0] state;
 wire touched;
 reg  [2:0] P, P_next;
 reg [31:0] cnt1;
 reg [31:0] cnt2;
 reg win;
+reg [9:0] sm_clk;
+
 
 assign touched = (ball_y + BALL_H >= VBUF_H - 20)? 1:0;
 
@@ -67,6 +69,7 @@ Ball ball(
     .Game_state(state), //0:start 1:ball wait for drop 2:in game 3:game end 4:default
     .who_win(win), //0:player win 1:npc win
     .smash(usr_btn[3]), //smash control
+    .smash1(sm_clk[3]),
     .Ball_X(ball_x),
     .Ball_Y(ball_y)
 );
@@ -75,6 +78,7 @@ player players(
     .clk(clk),
     .reset_n(reset_n),
     .usr_btn(usr_btn),
+    .Game_state(state),
     .x(player_x),
     .y(player_y)
     );
@@ -84,6 +88,7 @@ npc npcs(
     .reset_n(reset_n),
     .ball_pos_x(ball_x),
     .ball_pos_y(ball_y),
+    .Game_state(state),
     .npc_pos_x(computer_x),
     .npc_pos_y(computer_y)
 );
@@ -99,6 +104,7 @@ display show(
     .ball_y_position(ball_y),
     .player_score(player_score),
     .computer_score(computer_score),
+    .Game_state(state),
     .user_btn(usr_sw),
     .VGA_HSYNC(VGA_HSYNC),
     .VGA_VSYNC(VGA_VSYNC),
@@ -109,7 +115,7 @@ display show(
 
 always @(posedge clk) begin
   if (~reset_n || P==S_MAIN_INIT) begin
-    state <= 4;
+    state <= 0;
   end else  if(P == S_MAIN_START)begin
     state <= 0;
   end else  if(P == S_MAIN_WAIT1)begin
@@ -118,7 +124,7 @@ always @(posedge clk) begin
     state <= 2;
   end else  if(P == S_MAIN_END)begin
     state <= 3;
-  end else state <= 4;
+  end// else state <= 4;
 end
 
 // FSM of the SD card reader that reads the super block (512 bytes)
@@ -127,6 +133,16 @@ always @(posedge clk) begin
     P <= S_MAIN_INIT;
   end else begin
     P <= P_next;
+  end
+end
+
+always @(posedge clk) begin
+  if (~reset_n || P==S_MAIN_INIT) begin
+    sm_clk <= 0;
+  end else if(sm_clk > 1000) begin
+    sm_clk <= 0;
+  end else begin
+    sm_clk <= sm_clk+1;
   end
 end
 
@@ -181,14 +197,14 @@ always @(posedge clk) begin
         computer_score <= 0;
         win <= 0;
     end else if(P_next == S_MAIN_WAIT2) begin
-        if(ball_x >=180)begin
-            player_score <= player_score + 1;
-            win <= 0;
-        end else if(ball_x <180) begin
+        if(ball_x >=160)begin
             computer_score <= computer_score + 1;
             win <= 1;
+        end else if(ball_x <160) begin
+            player_score <= player_score + 1;
+            win <= 0;
         end
-    end
+    end  
 end
 
 

@@ -24,6 +24,7 @@ module player(
     input  clk,
     input  reset_n,
     input  [3:0] usr_btn,
+    input [1:0] Game_state,
     output [11:0]x,
     output [11:0]y
     );
@@ -76,7 +77,7 @@ reg facev;
 
 always @(posedge clk) begin
 
-  if (~reset_n ) begin
+  if (~reset_n || Game_state == 1) begin
     player_clock[31:20] <= {VBUF_W - player_W - 1};
     face <= 1;
   end else if(face==1 && ~(player_clock[31:20]+ player_W > VBUF_W) && usr_btn[0]==1)
@@ -94,7 +95,7 @@ end
 
 
 always @(posedge clk) begin
-  if (~reset_n ) begin
+  if (~reset_n || Game_state == 1) begin
      player_vclock[31:22] <= VBUF_H - player_H -21;
   end else if (facev == 1 && player_vclock[31:22] > 0) begin
      player_vclock <= player_vclock - speed;

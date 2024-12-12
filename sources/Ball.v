@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 module Ball(
     input clk,
     input reset_n,
@@ -8,6 +10,7 @@ module Ball(
     input [1:0] Game_state, //0:start 1:ball wait for drop 2:in game 3:game end
     input who_win, //0:player win 1:npc win
     input smash, //smash control
+    input smash1,
     output [11:0] Ball_X,
     output [11:0] Ball_Y
 );
@@ -31,7 +34,7 @@ localparam [11:0] Ball_W = 30,
                   START_V_Y = 2,
                   g = 2, 
                   range = 23,
-                  smash_speed = 23,
+                  smash_speed = 8,
                   ground_y = 220;
                  
 localparam [31:0] smash_cnt_max = 5000;
@@ -115,14 +118,11 @@ always @(posedge clk)begin
     if(~reset_n) begin 
         smash_cnt <= 0;
         start <= 0;
-        smash_times <= 1;
     end else if(start)begin
         smash_cnt <= (smash_cnt == smash_cnt_max)?smash_cnt_max:(smash_cnt+1);
         start <= (check_smash_cnt_max)?0:1;
-        smash_times <= 6;
     end else begin
-        smash_times <= 1;
-        start <= (smash && (player_collison || NPC_collison))?1:0;
+        start <= ( (player_collison && smash) || (NPC_collison && smash1) );
         smash_cnt <= 0;
     end
 end
@@ -130,7 +130,7 @@ end
 //ball pos_x control
 always @(posedge clk)begin
     if(~reset_n || Game_state != 2'b10)begin
-        pos_x[31:20] <= (who_win)?START_POS_NPC_X:START_POS_PLAYER_X;
+        pos_x[31:20] <= (who_win)?NPC_X:Player_X; //pos_x[31:20] <= (who_win)?START_POS_NPC_X:START_POS_PLAYER_X;
         x_dir <= 1;
         v_x <= START_V_X;
     end else begin
@@ -143,7 +143,7 @@ always @(posedge clk)begin
         else if(player_collison && smash)begin
             x_dir <= 0;
             v_x <= smash_speed;
-        end else if(NPC_collison && smash)begin
+        end else if(NPC_collison && smash1)begin
             x_dir <= 1;
             v_x <= smash_speed;
         end else if(player_collison && player_left_e && ~check_smash_cnt_max)begin 
@@ -186,7 +186,7 @@ end
 
 //ball y verctor control
 always @(posedge clk)begin
-    if(~reset_n)begin
+    if(~reset_n || Game_state != 2'b10)begin
         v_y[31:23] <= START_V_Y;
     end else begin
         v_y <= ( y_dir )? (v_y + g) : ( (v_y < g)?0: (v_y - g) );

@@ -1,10 +1,31 @@
 `timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 2024/12/10 00:00:04
+// Design Name: 
+// Module Name: npc
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
 
 module npc(
     input clk,
     input reset_n,
     input  [11:0] ball_pos_x,
     input  [11:0] ball_pos_y,
+    input [1:0] Game_state,//
     output [11:0] npc_pos_x,
     output [11:0] npc_pos_y
 );
@@ -20,9 +41,10 @@ reg [26:0] speed_clk;
 
 localparam VBUF_W = 320;
 localparam VBUF_H = 240;
+localparam NPC_VPOS = 199;
 localparam NPC_W = 41;
 localparam NPC_H = 42;
-localparam NET_POS = 160;
+localparam BALL_DIST = 18;
 
 parameter gravity = 27'd1;
 parameter init_speed = 27'd4;
@@ -34,16 +56,16 @@ reg face_v;
 
 // npc horizontal movement
 always @(posedge clk) begin
-    if (~reset_n) npc_clock[31:20] <= {VBUF_W - NPC_W - 1};
-    else if (~(npc_clock[31:20] + NPC_W > NET_POS) && ball_pos_x > npc_pos_x)
+    if (~reset_n || Game_state == 1) npc_clock[31:20] <= 1;
+    else if (~(npc_clock[31:20] + NPC_W > 160) && ball_pos_x > npc_pos_x + BALL_DIST + npc_clock[1:0])
         npc_clock <= npc_clock + 1;
-    else if (~(npc_clock[31:20] <= 0) && ball_pos_x < npc_pos_x)
+    else if (~(npc_clock[31:20] <= 0) && ball_pos_x < npc_pos_x + BALL_DIST + npc_clock[1:0])
         npc_clock <= npc_clock - 1;
 end
 
 // npc vertical movement
 always @(posedge clk) begin
-    if (~reset_n) npc_vclock[31:22] <= VBUF_H - NPC_H - 21;
+    if (~reset_n || Game_state == 1 ) npc_vclock[31:22] <= VBUF_H - NPC_H - 21;
     else if (face_v && npc_vclock[31:22] > 0)
         npc_vclock <= npc_vclock - speed;
     else if (~face_v && npc_vclock[31:22] + NPC_H < VBUF_H - 20)

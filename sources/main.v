@@ -1,24 +1,4 @@
 `timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 2024/12/03 09:26:46
-// Design Name: 
-// Module Name: main
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
-
 
 module main(
     input  clk,
@@ -49,12 +29,14 @@ wire [11:0] ball_y;
 reg [2:0] player_score;
 reg [2:0] computer_score;
 reg [1:0] state;
-wire touched;
+wire touched; // determine if ball touch the floor
 reg  [2:0] P, P_next;
-reg [31:0] cnt1;
-reg [31:0] cnt2;
-reg win;
-reg [9:0] sm_clk;
+reg [31:0] cnt1; //counting for start
+reg [31:0] cnt2; //counting for wait1
+reg win; // who win
+reg [9:0] sm_clk; // random smash for npc
+wire sm; // for npc
+assign sm = usr_sw[1]== 1'b1 ? sm_clk[3] : 1'b1;
 
 
 assign touched = (ball_y + BALL_H >= VBUF_H - 20)? 1:0;
@@ -66,10 +48,10 @@ Ball ball(
     .Player_Y(player_y),
     .NPC_X(computer_x),
     .NPC_Y(computer_y),
-    .Game_state(state), //0:start 1:ball wait for drop 2:in game 3:game end 4:default
-    .who_win(win), //0:player win 1:npc win
-    .smash(usr_btn[3]), //smash control
-    .smash1(sm_clk[3]),
+    .game_state(state), // 0: start, 1: ball wait for drop, 2: in game, 3: game end, 4: default
+    .who_win(win), // 0: player win, 1: npc win
+    .smash(usr_btn[3]), // smash control
+    .smash1(sm),
     .Ball_X(ball_x),
     .Ball_Y(ball_y)
 );
@@ -78,17 +60,18 @@ player players(
     .clk(clk),
     .reset_n(reset_n),
     .usr_btn(usr_btn),
-    .Game_state(state),
+    .game_state(state),
     .x(player_x),
     .y(player_y)
-    );
+);
     
 npc npcs(
     .clk(clk),
     .reset_n(reset_n),
     .ball_pos_x(ball_x),
     .ball_pos_y(ball_y),
-    .Game_state(state),
+    .game_mode(usr_sw[1]),
+    .game_state(state),
     .npc_pos_x(computer_x),
     .npc_pos_y(computer_y)
 );
@@ -104,8 +87,10 @@ display show(
     .ball_y_position(ball_y),
     .player_score(player_score),
     .computer_score(computer_score),
-    .Game_state(state),
-    .user_btn(usr_sw),
+    .game_state(state),
+    .usr_sw(usr_sw),
+    .mode(usr_sw[1]),
+    .special(usr_sw[2]),
     .VGA_HSYNC(VGA_HSYNC),
     .VGA_VSYNC(VGA_VSYNC),
     .VGA_RED(VGA_RED),
@@ -124,7 +109,7 @@ always @(posedge clk) begin
     state <= 2;
   end else  if(P == S_MAIN_END)begin
     state <= 3;
-  end// else state <= 4;
+  end
 end
 
 // FSM of the SD card reader that reads the super block (512 bytes)
@@ -164,25 +149,25 @@ always @(*) begin // FSM next-state logic
   case (P)
     S_MAIN_INIT: 
       P_next = S_MAIN_IDLE;
-    S_MAIN_IDLE: // wait for button click
+    S_MAIN_IDLE: // wait for sw pull
       if (usr_sw[0] == 0) P_next = S_MAIN_START;
       else P_next = S_MAIN_IDLE;
-    S_MAIN_START:
+    S_MAIN_START: // wait for a short time
         if(cnt1>100000000) P_next = S_MAIN_WAIT1;
         else P_next = S_MAIN_START;
     S_MAIN_WAIT1:
         if(cnt2>50000000) P_next = S_MAIN_PLAY;
         else P_next = S_MAIN_WAIT1;
-    S_MAIN_PLAY: 
+    S_MAIN_PLAY: // in game
       if (touched) P_next = S_MAIN_WAIT2;
       else P_next = S_MAIN_PLAY;
     S_MAIN_WAIT2:
         P_next = S_MAIN_CAL ;
-    S_MAIN_CAL: // wait for the input data to enter the SRAM buffer
+    S_MAIN_CAL: // score calculating
       if(player_score >= 7) P_next = S_MAIN_END;
       else if (computer_score >= 7) P_next = S_MAIN_END;
       else P_next = S_MAIN_WAIT1;
-    S_MAIN_END:
+    S_MAIN_END: // game end
         if (usr_sw[0] == 1) P_next = S_MAIN_INIT;
         else P_next = S_MAIN_END;
     default:
@@ -190,7 +175,7 @@ always @(*) begin // FSM next-state logic
   endcase
 end
 
-//compute score
+// compute score and who win
 always @(posedge clk) begin
     if(~reset_n || P==S_MAIN_INIT) begin
         player_score <= 0;
@@ -206,7 +191,5 @@ always @(posedge clk) begin
         end
     end  
 end
-
-
 
 endmodule

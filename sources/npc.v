@@ -6,7 +6,7 @@ module npc(
     input  [11:0] ball_pos_x,
     input  [11:0] ball_pos_y,
     input game_mode, // 0: hard, 1: easy
-    input [1:0] game_state,
+    input [1:0] game_state, // 1 for initial state
     output [11:0] npc_pos_x,
     output [11:0] npc_pos_y
 );
@@ -23,7 +23,6 @@ reg [26:0] speed_clk;
 
 localparam VBUF_W = 320;
 localparam VBUF_H = 240;
-localparam NPC_VPOS = 199;
 localparam NPC_W = 41;
 localparam NPC_H = 42;
 localparam BALL_DIST = 18;
@@ -63,13 +62,16 @@ always @(posedge clk) begin
         face_v <= 1;
         speed_clk <= 0;
     end else if (ball_pos_y <= 80 && npc_vclock[31:22] == (VBUF_H - NPC_H - 20)) begin
+        // initialize the vertical speed and change the direction
         speed <= 20;
         face_v <= 1;
     end else if (face_v && speed_clk > 27'd8388608) begin
+        // slow down the speed until it become 0 and change the direction
         if (speed == 0) face_v <= 0;
         else speed <= speed - 4;
         speed_clk <= 0;
     end else if (~face_v && npc_vclock[31:22] + NPC_H < VBUF_H - 20 && speed_clk > 27'd8388608) begin
+        // control the fall down speed
         speed <= speed + 2;
         speed_clk <= 0;
     end else speed_clk <= speed_clk + 1;

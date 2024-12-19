@@ -40,10 +40,10 @@ reg face_v;
 always @(posedge clk) begin
     if (~reset_n || game_state == 1) npc_clock[31:20] <= 1;
     else if (~(npc_clock[31:20] + NPC_W > 160) && ball_pos_x > npc_pos_x + BALL_DIST + npc_clock[1:0]
-            && (game_mode == 0 || doziness_clock < 21'd500_000))
+            && (game_mode == 0 || doziness_clock < 21'd700_000))
         npc_clock <= npc_clock + 1;
     else if (~(npc_clock[31:20] <= 0) && ball_pos_x < npc_pos_x + BALL_DIST + npc_clock[1:0]
-            && (game_mode == 0 || doziness_clock < 21'd500_000))
+            && (game_mode == 0 || doziness_clock < 21'd700_000))
         npc_clock <= npc_clock - 1;
 end
 

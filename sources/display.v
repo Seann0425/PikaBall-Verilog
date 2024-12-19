@@ -258,7 +258,7 @@ always @ (posedge clk) begin
     else pixel_addr_computer<=0;
     
     if(ball_region) begin
-        if(special==1) pixel_addr_ball<= ((pixel_y -(ball_y_position<<1))>>1)*BALL_W +((pixel_x-(ball_x_position<<1))>>1);     
+        if(special==0) pixel_addr_ball<= ((pixel_y -(ball_y_position<<1))>>1)*BALL_W +((pixel_x-(ball_x_position<<1))>>1);     
         else if(mode==0) pixel_addr_ball<=addr_fire_ball[ball_x_position[5:3]] +((pixel_y -(ball_y_position<<1))>>1)*BALL_W +((pixel_x-(ball_x_position<<1))>>1);                        
         else pixel_addr_ball<=addr_ball[ball_x_position[4:3]] +((pixel_y -(ball_y_position<<1))>>1)*BALL_W +((pixel_x-(ball_x_position<<1))>>1);             
     end
